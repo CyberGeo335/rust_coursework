@@ -5,7 +5,9 @@ use std::time::Duration;
 use employee_time_tracker::{ActivityKind, ActivityTracker, TrackerConfig};
 
 fn main() {
-    let employee_id = env::args().nth(1).unwrap_or_else(|| "demo-employee".to_owned());
+    let employee_id = env::args()
+        .nth(1)
+        .unwrap_or_else(|| "demo-employee".to_owned());
     let endpoint = env::args()
         .nth(2)
         .unwrap_or_else(|| "http://127.0.0.1:8080/reports".to_owned());

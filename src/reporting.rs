@@ -62,7 +62,7 @@ impl HttpReportSink {
                 }
             }
         }
-        Err(last_error.unwrap_or_else(|| io::Error::new(io::ErrorKind::Other, "send failed")))
+        Err(last_error.unwrap_or_else(|| io::Error::other("send failed")))
     }
 }
 
@@ -88,21 +88,30 @@ struct HttpEndpoint {
 impl HttpEndpoint {
     fn parse(value: &str) -> io::Result<Self> {
         let without_scheme = value.strip_prefix("http://").ok_or_else(|| {
-            io::Error::new(io::ErrorKind::InvalidInput, "only http:// endpoints are supported")
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "only http:// endpoints are supported",
+            )
         })?;
         let (host_port, path) = without_scheme
             .split_once('/')
             .map(|(host, path)| (host, format!("/{path}")))
             .unwrap_or((without_scheme, "/".to_owned()));
         if host_port.is_empty() {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "endpoint host is empty"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "endpoint host is empty",
+            ));
         }
         let (host, port) = host_port
             .rsplit_once(':')
             .and_then(|(host, port)| port.parse::<u16>().ok().map(|port| (host, port)))
             .unwrap_or((host_port, 80));
         if host.is_empty() {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "endpoint host is empty"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "endpoint host is empty",
+            ));
         }
         Ok(Self {
             host: host.to_owned(),
@@ -129,7 +138,7 @@ impl HttpEndpoint {
         if response.starts_with("HTTP/1.1 2") || response.starts_with("HTTP/1.0 2") {
             Ok(())
         } else {
-            Err(io::Error::new(io::ErrorKind::Other, "server returned non-success status"))
+            Err(io::Error::other("server returned non-success status"))
         }
     }
 }
@@ -203,10 +212,8 @@ mod tests {
 
     #[test]
     fn file_spool_stores_pending_reports() {
-        let dir = std::env::temp_dir().join(format!(
-            "employee-time-tracker-test-{}",
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("employee-time-tracker-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         let spool = FileSpool::new(dir.clone()).unwrap();
 

@@ -27,6 +27,7 @@ impl TrackerWorker {
         let (sender, receiver) = mpsc::channel();
         let handle = thread::spawn(move || {
             logger.info("tracker worker started");
+            let mut last_reported_state: Option<ReportState> = None;
             loop {
                 match receiver.recv_timeout(report_interval) {
                     Ok(TrackerCommand::Activity(event)) => {
@@ -37,14 +38,19 @@ impl TrackerWorker {
                         logger.info("manual report flush requested");
                         let snapshot = accumulator.snapshot(SystemTime::now());
                         let _ = sink.send(&snapshot).map_err(|error| {
-                            logger.warn(&format!("report send failed; spooled if possible: {error}"));
+                            logger
+                                .warn(&format!("report send failed; spooled if possible: {error}"));
                         });
+                        last_reported_state = Some(ReportState::from(&snapshot));
                         let _ = reply.send(snapshot);
                     }
                     Ok(TrackerCommand::Stop) => {
                         let snapshot = accumulator.snapshot(SystemTime::now());
-                        if let Err(error) = sink.send(&snapshot) {
-                            logger.warn(&format!("final report send failed: {error}"));
+                        let state = ReportState::from(&snapshot);
+                        if last_reported_state != Some(state) {
+                            if let Err(error) = sink.send(&snapshot) {
+                                logger.warn(&format!("final report send failed: {error}"));
+                            }
                         }
                         logger.info("tracker worker stopped");
                         break;
@@ -55,6 +61,7 @@ impl TrackerWorker {
                         if let Err(error) = sink.send(&snapshot) {
                             logger.warn(&format!("periodic report send failed: {error}"));
                         }
+                        last_reported_state = Some(ReportState::from(&snapshot));
                     }
                     Err(RecvTimeoutError::Disconnected) => {
                         logger.warn("tracker command channel disconnected");
@@ -77,6 +84,23 @@ impl TrackerWorker {
         let _ = self.sender.send(TrackerCommand::Stop);
         if let Some(handle) = self.handle.take() {
             let _ = handle.join();
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ReportState {
+    active_seconds: u64,
+    idle_seconds: u64,
+    total_events: u64,
+}
+
+impl From<&ActivitySnapshot> for ReportState {
+    fn from(snapshot: &ActivitySnapshot) -> Self {
+        Self {
+            active_seconds: snapshot.active_seconds,
+            idle_seconds: snapshot.idle_seconds,
+            total_events: snapshot.total_events,
         }
     }
 }

@@ -149,7 +149,9 @@ impl ActivityAccumulator {
                     let active_delta = idle_started_at
                         .duration_since(self.last_tick_at)
                         .unwrap_or(Duration::ZERO);
-                    let idle_delta = now.duration_since(idle_started_at).unwrap_or(Duration::ZERO);
+                    let idle_delta = now
+                        .duration_since(idle_started_at)
+                        .unwrap_or(Duration::ZERO);
                     self.active = self.active.saturating_add(active_delta);
                     self.idle = self.idle.saturating_add(idle_delta);
                 }
