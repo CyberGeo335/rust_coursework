@@ -1,0 +1,18 @@
+[package]
+name = "employee-time-tracker"
+version = "0.1.0"
+edition = "2021"
+description = "MVP system activity and idle tracker for HR time accounting"
+
+[lib]
+name = "employee_time_tracker"
+path = "src/lib.rs"
+
+[[bin]]
+name = "employee-time-tracker"
+path = "src/main.rs"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
